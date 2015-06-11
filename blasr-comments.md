@@ -59,7 +59,7 @@ have to make an arbitrary choice.)
 
 > The program evaluation is quite limited, in that only a single substitution &
 > indel rate is used to compare aligners. Comparing a wide range of sequence
-> divergences is a pretty substantial computational undertaking so it’s ok
+> divergences is a pretty substantial computational undertaking so itâ€™s ok
 > to keep the benchmarking simple, but the interpretation of results needs to
 > be strongly qualified in the manuscript. I am specifically concerned that the
 > SMEM based alignment seeding strategy will fall apart at higher substitution
@@ -80,7 +80,7 @@ PacBio data.
 
 > There is one glaring omission in the comparison set of aligners and that is
 > [LAST](http://last.cbrc.jp). LAST can do some clever things such as
-> quality­aware gapped alignment scoring and approximate Bayesian aligned read
+> qualityÂ­aware gapped alignment scoring and approximate Bayesian aligned read
 > pairing, in addition to long sequence alignment. If there is some reason that
 > a comparison to LAST isn't possible or appropriate it should be stated so
 > rather than leaving us to wonder about it.
@@ -122,7 +122,7 @@ alignment where variations are frequent, I agree specifying a scoring matrix is
 preferred. But even in that case, it will have little effect on mapping
 accuracy (more on alignment accuracy).
 
-> No mention is made of whether or how the per­base quality estimates produced
+> No mention is made of whether or how the perÂ­base quality estimates produced
 > by sequencing instruments are used during gapped alignment.
 
 Base quality is not used because base quality is frequently inaccurate and it
@@ -132,7 +132,7 @@ caused by variants tend to be recurrent, but considering base quality does not
 help. Only recurrent mismappings have impact on downstream analyses.
 
 > The value of the "SW rescuing" approach is unclear. The manuscript says the
-> 2nd best SW score is recorded ­­ what happens when there are many equally
+> 2nd best SW score is recorded Â­Â­ what happens when there are many equally
 > good alignments? The alignment with the 2nd best score might be minimally
 > different. Or is this referring to the best alignment to a different region
 > of the reference sequence? If so, the explanation needs to be improved.
@@ -169,7 +169,7 @@ pairing, bwa-mem sorts all hits from both ends together. It then does a linear
 scan over the list with a window whose size is determined by the insert size
 distribution. It is not necessary to inspect all pairs.
 
-> "is more performant" �> performs better
+> "is more performant" ­> performs better
 
 It will be changed.
 
@@ -187,12 +187,12 @@ It will be changed.
 > So lastal has remarkably good precision but aligns slightly fewer of the
 > reads with the recommended settings than bwa mem. If we turn these numbers
 > into an F1 score (http://en.wikipedia.org/wiki/F1_score)
-> we get lastal: 0.98883 bwa�mem: 0.99519 so if you like the balance of
-> precision and recall provided by F1, bwa�mem seems like a good choice. For
+> we get lastal: 0.98883 bwa­mem: 0.99519 so if you like the balance of
+> precision and recall provided by F1, bwa­mem seems like a good choice. For
 > things like identifying rare variants, I will probably stick with lastal when
 > possible since the occasional misalignments could potentially end up creating a
 > lot of rare variants. It might also be possible to improve lastal's recall
-> with a lower e�value threshold, I did not explore this.
+> with a lower e­value threshold, I did not explore this.
 
 This evaluation has a flaw: it includes mapQ=0 mappings from bwa-mem but not
 from LAST (because LAST does not report them by default). Most mapQ=0 mapping
