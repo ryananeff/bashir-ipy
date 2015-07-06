@@ -22,13 +22,6 @@ name="$sample"_"$lane"
 
 ###########################################
 
-# run new bwamem alignment, use two threads and 8g of RAM (we're being hopeful here...)
-echo "$(date): starting bwamem alignment...";
-bwa mem -t 12 -w 100 -k 20 -M \
-	-R '@RG\tID:1\tSM:'$3'\tLB:'$3'\tPL:ILLUMINA\tPU:'$3'' \
-	"$reference" "$left" "$right" > "$name".sam;
-if [ $? -ne 0 ]; then echo "$(date): exited with non-zero status ($?) during bwa-mem"; exit 1; else echo "$(date): bwamem alignment done."; fi
-
 # create bam file and sort it before writing
 echo "$(date): starting conversion to BAM...";
 samtools view -bS "$name".sam -o "$name".bam;
