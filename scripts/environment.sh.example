@@ -3,12 +3,16 @@
 # initialize
 export home="/hpc/users/xneffr01/work"
 export datahome="/sc/orga/scratch/bashia02/collaborations/hardik_shah/jason_new"
-export reference="$home/NIST_asm_2015-07-01_pa_ctg.fa"
+export reference="$datahome/NIST_asm_2015-07-01_pa_ctg.fa"
+export suffix="$datahome/NIST_asm_2015-07-01_pa_ctg.sa"
 module load java/1.7.0_60
 module load samtools/0.1.19
 module load bwa/0.7.8
 module load bedtools/2.21.0
 module load gatk/3.3-0
+module load picard/1.112
+module load freebayes/0.9.20
+export picardhome="/hpc/packages/minerva-common/picard/1.112/bin"
 export tools="$home/tools/"
 export scratchdir="/sc/orga/scratch/xneffr01/tmp/"
 export PATH="/hpc/users/xneffr01/work/tools/blasr/alignment/bin/:$PATH"
