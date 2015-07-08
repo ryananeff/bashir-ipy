@@ -158,22 +158,22 @@ class HairReader:
 '''
 
 tag_reads
-Ryan Neff
 7/5/2015
 
 Usage: Tags reads from a bam file corresponding to a particular haplotype, with haplotype
 definitions from HapCut, under the optional tag "ZH".
 
 Inputs:
-    bam_file (string)
-        The filename of a bam file on which the haplotype cuts were generated.
-    read_array (list of <HapCutRead>)
-        An array of HapCutRead objects that list which reads correspond to a particular haplotype block.
-    block_array (list of <BlockVariants>)
-        Of the format HapCutReader.blocks
+    bam_fp (pysam.Samfile)
+        The pysam.Samfile object corresponding to a bam file on which the haplotype cuts were generated.
+    hairs_file (string)
+        The filename of a hairs file from Hapcut.
+    hapcut_file (string)
+        The filename of a hapcut blocks file.
+    out_fp (pysam.AlignmentFile)
+        Should be a writable file pysam file pointer.
 Outputs:
-    out_file (string)
-        The filename of the output (bam file).
+    (no returns - it writes to out_fp)
 
 '''
 
@@ -181,7 +181,6 @@ def tag_reads(bam_fp, hairs_file, hapcut_file, out_fp):
     count = 0
     sys.stdout.write('Started reading from BAM')
     sys.stdout.flush()
-    ''' tag_reads(bam_fp, hairs_file, hapcut_file, out_fp)'''
     read_array = HairReader(hairs_file).reads
     read_set = frozenset([x.read_id for x in read_array])
     block_array = HapCutReader(hapcut_file).blocks
@@ -212,20 +211,18 @@ def tag_reads(bam_fp, hairs_file, hapcut_file, out_fp):
 greedy_partition()
 Ryan Neff
 
+Usage: Runs a greedy algorithm to determine which haplotype block(s) a read
+belongs to.
+
 inputs:
-read
-    a HapCutRead object
-block_array
-    of the type HapCutReader.blocks
+    read (HapCutRead)
+        A read from the hairs file.
+    block_array (list of Block)
+        All of the blocks in the hapcut file.
 
 outputs:
-    the original read with haplotype information
-
-translate hairfile alleles into blockvar IDs
-get alleles in each read spanning blockvars
-determine alleles for the two blocks from blockvar
-partition read based on locally most probable alignment
-
+    out_read (HapCutRead)
+        The original read with haplotype information
 '''
 
 def greedy_partition(read, block_array):
