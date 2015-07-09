@@ -28,6 +28,8 @@ echo "$(date): BLASR aligning file; name: $name..."
 
 blasr $input $reference -nproc $threads -sa $suffix -sam -out $name -clipping subread -bestn 2
 
+samtools view -bS -o "$name".bam "$name".sam
+
 #end
 if [ $? -ne 0 ]; 
 then 

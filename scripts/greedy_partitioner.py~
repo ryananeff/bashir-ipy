@@ -239,7 +239,9 @@ class HairReader:
 
 '''
 
-tag_reads()
+tag_reads
+Ryan Neff
+7/5/2015
 
 Usage: Tags reads from a bam file corresponding to a particular haplotype, with haplotype
 definitions from HapCut, under the optional tag "ZH".
