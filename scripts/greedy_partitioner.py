@@ -49,8 +49,10 @@ def main(argv):
     
     hair_reader = HairReader(hairs_file)
     block_reader = HapCutReader(hapcut_file)
+    stats_file = hairs_file + ".interblock_stats.tsv"
     
     tag_reads(bam_fp, hair_reader, block_reader, out_fp) #begin tagging reads
+    interblock_stats(hair_reader, block_reader, stats_file) #generate interblock stats
     bam_fp.close()
     out_fp.close()
 
@@ -260,7 +262,6 @@ Outputs:
 
 def tag_reads(bam_fp, hair_reader, block_reader, out_fp):
     ''' tag_reads(bam_fp, hair_reader, block_reader, out_fp)'''
-    # let's group the reads by genomic position / block offset to speed up reading from the BAM file
     for bamread in bam_fp.fetch():
         if bamread.query_name in hair_reader.read_set:
             read = hair_reader.loc(bamread.query_name)
@@ -340,7 +341,7 @@ outputs:
 
 '''
 
-def interblock_stats(hair_reader, block_reader, out_stats=hairs_file + ".interblock_stats.tsv"):
+def interblock_stats(hair_reader, block_reader, out_stats):
     blockdist = []
     lastChr = None
     lastPos = None
