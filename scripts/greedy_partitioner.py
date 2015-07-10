@@ -51,7 +51,7 @@ def main(argv):
 
     hair_reader = HairReader(hairs_file)
     block_reader = HapCutReader(hapcut_file)
-    stats_file = hairs_file + ".interblock_stats.tsv"
+    stats_file = out_file + ".interblock_stats.tsv"
     sys.stdout.write("Loaded greedy_partitoner.py, beginning execution. \n")
     sys.stdout.flush()
     tag_reads(bam_fp, hair_reader, block_reader, out_fp) #begin tagging reads
@@ -92,28 +92,28 @@ class Block:
         self.span        = int(ll[8])
         self.MECscore    = float(ll[10])
         self.fragments   = int(ll[12])
-        self.variants 	 = [] # default to empty
-        self.variant_ids = []
+        self.variants 	 = dict() # default to empty
+        self.variant_ids = set()
         self.chrom = 0
         self.start = 0
         self.end = 0
         self.informative_reads = []
         self.read_count = 0
-        self.read_set = set()
+        self.read_set = frozenset()
 
     def __repr__ (self):
         return "<Block, offset_id: %s>" % str(self.offset)
 
     def addVariant(self, variantline):
         variant = BlockVariant(variantline)
-        self.variants.append(variant)
-        self.variant_ids.append(variant.var_id)
+        self.variants[variant.var_id] = variant
+        self.variant_ids.add(variant.var_id)
         self.updatePosition()
 
     def updatePosition(self): # we need to do this because sometimes the variant isn't associated with a block
         positions = []
         chrom = None
-        for variant in self.variants:
+        for k,variant in self.variants.iteritems():
             if chrom == None:
                 chrom = variant.chrom
             positions.append(variant.pos)
@@ -121,9 +121,9 @@ class Block:
         self.start = np.min(positions)
         self.end = np.max(positions)
 
-    def addReadsToBlock(self, read_array):
+    def addReadsToBlock(self, read_dict):
         self.informative_reads = []
-        for read in read_array:
+        for k,read in read_dict.iteritems():
             read_ids = [var[0] for block in read.blocks for var in block]
             if len(set(read_ids).intersection(set(self.variant_ids))) > 0:
                 self.informative_reads.append(read)
@@ -136,11 +136,11 @@ class Block:
          using the read's haplotype information, we can establish whether the read's phasing
          is consistent with how the variant was phased '''
         variant_concord = dict()
-	support_reads_hap2 = 0
-	against_reads_hap2 = 0
-	support_reads_hap1 = 0
-	against_reads_hap1 = 0
-        for variant in self.variants:
+        support_reads_hap2 = 0
+        against_reads_hap2 = 0
+        support_reads_hap1 = 0
+        against_reads_hap1 = 0
+        for k,variant in self.variants.iteritems():
             for read in input_reads:
                 if variant.var_id in read.positions:
                     read_allele = read.alleles[read.positions.index(variant.var_id)]
@@ -155,13 +155,15 @@ class Block:
                             against_reads_hap1 += 1
                         else:
                             support_reads_hap1 += 1
-	# just produce concordance statistics globally
-	variant_concord[self.offset] = {"hap1": (support_reads_hap1, against_reads_hap1), 
-		                       "hap2": (support_reads_hap2, against_reads_hap2)}
+        variant_concord[self.offset] = {"hap1": (support_reads_hap1, against_reads_hap1), 
+                                               "hap2": (support_reads_hap2, against_reads_hap2)}
         return variant_concord
 
     def variant(self, var_id):
-        return next((x for x in self.variants if var_id == x.var_id), None)
+        try:
+            return self.variants[var_id]
+        except:
+            return None
 
     def interblock_reads(self, input_reads):
         out_reads = []
@@ -178,10 +180,18 @@ class HapCutReader:
 
     def __init__ ( self, fn ):
         self.fn = fn
-        self.blocks = list(self.read_file_to_blocks(fn))
+        self.blocks = dict()
+        self.translate = dict()
+        for block in self.read_file_to_blocks(fn):
+            self.blocks[block.offset] = block
+            for v in block.variant_ids:
+                self.translate[v] = block.offset
 
     def loc(self, block_id):
-        return next((x for x in self.blocks if block_id in x.variant_ids), None)
+        try:
+            return self.blocks[self.translate[block_id]]
+        except:
+            return None
 
     def read_file_to_blocks(self, fn):
         with open(fn) as f:
@@ -260,17 +270,21 @@ class HairReader:
 
     def __init__ (self, fn):
         self.fn = fn
-        self.reads = []
+        self.reads = dict()
         with open (fn) as f:
             for l in f:
-                self.reads.append(HapCutRead(l))
-        self.read_set = frozenset([x.read_id for x in self.reads])
+                newread = HapCutRead(l)
+                self.reads[newread.read_id] = newread
+        self.read_set = frozenset(self.reads.keys())
 
     def __repr__ (self):
         return "<HairReader, filename: %s>" % self.fn
 
     def loc(self, read_id):
-        return next((x for x in self.reads if read_id == x.read_id))
+        try:
+            return self.reads[read_id]
+        except:
+            return None
 
 ### FUNCTIONS ###
 
@@ -361,14 +375,16 @@ def greedy_partition(read, block_reader):
             elif blockvar.hap2 == alleles[ix]:
                 allele_state.append(1)
             else:
-                sys.stderr.write("\nERROR: read allele matched no haplotypes.")
-                sys.stderr.write("\nHair read: %s" % read.read_id)
-                sys.stderr.write("\nAlleles: %s" % str(alleles[ix]))
-                sys.stderr.write("\n Hap 1: %s, Hap 2: %s\n\n" % (blockvar.hap1, blockvar.hap2))
+                #sys.stderr.write("\nWarning: read allele matched no haplotypes.")
+                #sys.stderr.write("\nHair read: %s" % read.read_id)
+                #sys.stderr.write("\nAlleles: %s" % str(alleles[ix]))
+                #sys.stderr.write("\n Hap 1: %s, Hap 2: %s\n" % (blockvar.hap1, blockvar.hap2))
                 sys.stderr.flush()
                 continue
         if len(allele_state) < 1:
             sys.stderr.write("Warning: no haplotype information in read.\n")
+            sys.stderr.write("\nHair read: %s" % read.read_id)
+            sys.stderr.flush()
             hap = -1
         if sum(allele_state) < 0:
             hap = 1
@@ -405,14 +421,14 @@ def interblock_stats(hair_reader, block_reader, out_stats):
     lastPos = None
     lastBlock = None
     lastReads = set()
-    for read in hair_reader.reads:
-        read.addGenomicPositions(block_reader)
+    for k,read in hair_reader.reads.iteritems():
         if read.haplotypes == dict():
             read = greedy_partition(read, block_reader)
-    countb = 0
-    for block in block_reader.blocks:
-        countb += 1
-        sys.stdout.write("\rProcessed %s blocks." % str(countb))
+        read.addGenomicPositions(block_reader)
+    for ix, key in enumerate(sorted(block_reader.blocks.keys())):
+        sys.stdout.write('\r%s percent done.' % round(ix/float(len(block_reader.blocks))*100))
+        sys.stdout.flush()
+        block = block_reader.blocks[key]
         if block.read_set == set():
             block.addReadsToBlock(hair_reader.reads)
         currBlock = block.offset
@@ -421,10 +437,14 @@ def interblock_stats(hair_reader, block_reader, out_stats):
         if lastBlock != None:
             if lastChr == currChr:
                 interblock_reads = block.interblock_reads(lastBlock_obj.informative_reads)
-                row=[lastBlock, currBlock, currChr, lastPos, currPos, currPos-lastPos, 
+                row=[lastBlock, currBlock, currChr, lastPos, currPos, currPos-lastPos,
+                     lastBlock_obj.end-lastBlock_obj.start, block.end-block.start,
                      len(lastBlock_obj.variant_ids), len(block.variant_ids), 
                      len(lastBlock_obj.informative_reads), len(block.informative_reads),
-                     len(interblock_reads), 
+                     len(list(bam_fp.fetch(region=lastChr + ':' + str(lastBlock_obj.start) + '-' + str(lastBlock_obj.end)))),
+                     len(list(bam_fp.fetch(region=lastChr + ':' + str(block.start) + '-' + str(block.end)))),
+                     len(interblock_reads),
+                     len(list(bam_fp.fetch(region=lastChr + ':' + str(lastBlock_obj.end) + '-' + str(block.start)))),
                      lastBlock_obj.concordance(lastBlock_obj.informative_reads), 
                      block.concordance(block.informative_reads)]
                 blockdist.append(row)
@@ -434,8 +454,10 @@ def interblock_stats(hair_reader, block_reader, out_stats):
         lastBlock_obj = block
         lastChr = currChr
         lastPos = block.end
-    header = ['block1', 'block2', 'chrom', 'block1_end', 'block2_start', 'distance', 'block1_variants', 'block2_variants', 
-              'block1_reads', 'block2_reads', 'interblock_reads', 'block1_concordance', 'block2_concordance']
+    header = ['block1', 'block2', 'chrom', 'block1_end', 'block2_start', 
+              'distance', 'block1_size', 'block2_size', 'block1_variants', 'block2_variants', 
+              'block1_informative_reads', 'block2_informative_reads', 'block1_reads', 'block2_reads',
+              'informative_interblock_reads', 'all_interblock_reads', 'block1_concordance', 'block2_concordance']
     info = pd.DataFrame(blockdist, columns=header)
     info.to_csv(out_stats, sep="\t")
 
