@@ -136,11 +136,11 @@ class Block:
          using the read's haplotype information, we can establish whether the read's phasing
          is consistent with how the variant was phased '''
         variant_concord = dict()
+	support_reads_hap2 = 0
+	against_reads_hap2 = 0
+	support_reads_hap1 = 0
+	against_reads_hap1 = 0
         for variant in self.variants:
-            support_reads_hap2 = 0
-            against_reads_hap2 = 0
-            support_reads_hap1 = 0
-            against_reads_hap1 = 0
             for read in input_reads:
                 if variant.var_id in read.positions:
                     read_allele = read.alleles[read.positions.index(variant.var_id)]
@@ -155,8 +155,9 @@ class Block:
                             against_reads_hap1 += 1
                         else:
                             support_reads_hap1 += 1
-            variant_concord[variant.var_id] = {"hap1": (support_reads_hap1, against_reads_hap1), 
-                                               "hap2": (support_reads_hap2, against_reads_hap2)}
+	# just produce concordance statistics globally
+	variant_concord[self.offset] = {"hap1": (support_reads_hap1, against_reads_hap1), 
+		                       "hap2": (support_reads_hap2, against_reads_hap2)}
         return variant_concord
 
     def variant(self, var_id):
@@ -360,10 +361,10 @@ def greedy_partition(read, block_reader):
             elif blockvar.hap2 == alleles[ix]:
                 allele_state.append(1)
             else:
-                sys.stderr.write("\nERROR: read allele matched no haplotypes.\n")
+                sys.stderr.write("\nERROR: read allele matched no haplotypes.")
                 sys.stderr.write("\nHair read: %s" % read.read_id)
                 sys.stderr.write("\nAlleles: %s" % str(alleles[ix]))
-                sys.stderr.write("\n Hap 1: %s, Hap 2: %s\n" % (blockvar.hap1, blockvar.hap2))
+                sys.stderr.write("\n Hap 1: %s, Hap 2: %s\n\n" % (blockvar.hap1, blockvar.hap2))
                 sys.stderr.flush()
                 continue
         if len(allele_state) < 1:
@@ -433,7 +434,6 @@ def interblock_stats(hair_reader, block_reader, out_stats):
         lastBlock_obj = block
         lastChr = currChr
         lastPos = block.end
-        lastReads = currReads
     header = ['block1', 'block2', 'chrom', 'block1_end', 'block2_start', 'distance', 'block1_variants', 'block2_variants', 
               'block1_reads', 'block2_reads', 'interblock_reads', 'block1_concordance', 'block2_concordance']
     info = pd.DataFrame(blockdist, columns=header)
