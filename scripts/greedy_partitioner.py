@@ -299,9 +299,9 @@ def tag_reads(bam_fp, hair_reader, block_reader, out_fp):
     global count
     for bamread in bam_fp.fetch():
         count += 1
-    if (count % 100) == 0:
-        sys.stdout.write("\rWritten %s lines to output." % str(count))
-        sys.stdout.flush()
+        if (count % 100) == 0:
+            sys.stdout.write("\rWritten %s lines to output." % str(count))
+            sys.stdout.flush()
         if bamread.query_name in hair_reader.read_set:
             read = hair_reader.loc(bamread.query_name)
             read = greedy_partition(read, block_reader)
@@ -398,7 +398,7 @@ outputs:
 
 '''
 
-def interblock_stats(hair_reader, block_reader, out_stats=hairs_file + ".interblock_stats.tsv"):
+def interblock_stats(hair_reader, block_reader, out_stats):
     blockdist = []
     lastChr = None
     lastPos = None
