@@ -405,10 +405,13 @@ def interblock_stats(hair_reader, block_reader, out_stats):
     lastBlock = None
     lastReads = set()
     for read in hair_reader.reads:
+        read.addGenomicPositions(block_reader)
         if read.haplotypes == dict():
             read = greedy_partition(read, block_reader)
-            read.addGenomicPositions(block_reader)
+    countb = 0
     for block in block_reader.blocks:
+        countb += 1
+        sys.stdout.write("\rProcessed %s blocks." % str(countb))
         if block.read_set == set():
             block.addReadsToBlock(hair_reader.reads)
         currBlock = block.offset
