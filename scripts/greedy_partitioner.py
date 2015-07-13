@@ -55,7 +55,7 @@ def main(argv):
     sys.stdout.write("Loaded greedy_partitoner.py, beginning execution. \n")
     sys.stdout.flush()
     tag_reads(bam_fp, hair_reader, block_reader, out_fp) #begin tagging reads
-    interblock_stats(hair_reader, block_reader, stats_file) #generate interblock stats
+    interblock_stats(hair_reader, block_reader, stats_file, bam_fp) #generate interblock stats
     bam_fp.close()
     out_fp.close()
 
@@ -415,7 +415,7 @@ outputs:
 
 '''
 
-def interblock_stats(hair_reader, block_reader, out_stats):
+def interblock_stats(hair_reader, block_reader, out_stats, bam_fp):
     blockdist = []
     lastChr = None
     lastPos = None

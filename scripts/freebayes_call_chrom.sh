@@ -26,6 +26,6 @@ freebayes -f $reference \
 --report-all-haplotype-alleles \
 -b $infile \
 -r $chrom \
--v "$name"."$chrom".freebayes.vcf;
+-v "$name".freebayes.vcf;
 if [ $? -ne 0 ]; then echo "$(date): exited with non-zero status ($?) during VCF generation freebayes"; exit 1; else echo "$(date): Freebayes VCF generation done"; fi
 

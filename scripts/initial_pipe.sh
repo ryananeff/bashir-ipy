@@ -31,11 +31,11 @@ if [ $? -ne 0 ]; then echo "$(date): exited with non-zero status ($?) during bwa
 
 # create bam file and sort it before writing
 echo "$(date): starting conversion to BAM...";
-samtools view -bS "$name".sam -o "$name".bam;
+samtools view -@ 12 -bS "$name".sam -o "$name".bam;
 if [ $? -ne 0 ]; then echo "$(date): exited with non-zero status ($?) during samtools view"; exit 1; else echo "$(date): BAM conversion done."; fi
 
 echo "$(date): sorting BAM...";
-samtools sort "$name".bam "$name".sort;
+samtools sort -@ 12 "$name".bam "$name".sort;
 if [ $? -ne 0 ]; then echo "$(date): exited with non-zero status ($?) during samtools sort"; exit 1; else echo "$(date): sorting bam done."; fi
 
 # if all went well, remove the old files (we should only get here if there was zero exit statuses

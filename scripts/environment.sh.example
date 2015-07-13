@@ -14,5 +14,5 @@ module load picard/1.112
 module load freebayes/0.9.20
 export picardhome="/hpc/packages/minerva-common/picard/1.112/bin"
 export tools="$home/tools/"
-export scratchdir="/sc/orga/scratch/xneffr01/tmp/"
+export scratchdir="/sc/orga/scratch/neffr01/tmp/"
 export PATH="/hpc/users/xneffr01/work/tools/blasr/alignment/bin/:$PATH"
