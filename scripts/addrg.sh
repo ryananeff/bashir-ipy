@@ -22,6 +22,7 @@ study=$4
 # add back read groups
 echo "$(date): adding back read groups..."
 java -Xmx8g -Djava.io.tmpdir="$scratchdir" -jar $picardhome/AddOrReplaceReadGroups.jar \
+QUIET=true \
 I="$name" \
 O="$name".rg.bam \
 RGID="$lane" \
