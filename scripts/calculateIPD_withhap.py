@@ -108,10 +108,13 @@ def getIPDfromBAM(bam_fp, sequences, chrom, start, end, pos_fp):
 		refseq = str(sequences[chrom][rstart:rend])
 		refmap = get_refmap(read)
 		(block, haplotype) = (None, None)
+		zhtag = read.get_tag('ZH')
 		try:
-			block, haplotype = read.get_tag('ZH').split(";")[0].split(",") # only look at the first haplotype block for partitioning
+			block, haplotype = zhtag.split(";")[0].split(",") # only look at the first haplotype block for partitioning
+			haplotype = int(haplotype)
 		except:
-			continue
+			haplotype = int(zhtag)
+			block = 1
 		if block == None:
 			continue # we are only looking at the partitioned data here
 		sys.stdout.write(str(haplotype) + '\n')
@@ -131,8 +134,8 @@ def getIPDfromBAM(bam_fp, sequences, chrom, start, end, pos_fp):
 	sys.stderr.write("Finished calculating IPDs. Writing positional output\n")
 	pos_fp.write("#ref_chrom\tref_pos\tipd_hap1\tipd_hap2\n")
 	for key in sorted(ipd_by_position.keys()):
-		pos_fp.write('\t'.join([str(x) for x in [chrom, key, ','.join([str(a) for a,b in ipd_by_position[key] if b == '1']), 
-			','.join([str(a) for a,b in ipd_by_position[key] if b == '2'])]]) + '\n')
+		pos_fp.write('\t'.join([str(x) for x in [chrom, key, ','.join([str(a) for a,b in ipd_by_position[key] if b == 1]), 
+			','.join([str(a) for a,b in ipd_by_position[key] if b == 2])]]) + '\n')
 	pos_fp.flush()
 	sys.stderr.write("Successfully completed.\n")
 	sys.stderr.flush()
