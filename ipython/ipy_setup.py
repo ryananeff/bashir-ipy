@@ -3,13 +3,16 @@
 # %matplotlib inline ## magic functions don't work here!
 from collections import defaultdict
 import json
-import sys
 import time
-
+import os, sys, getopt
+import pysam
+from itertools import groupby
+from operator import itemgetter
+import pandas as pd
 import numpy as np
+
 import scipy as sp
 import matplotlib.pyplot as plt
-import pandas as pd
 
 from matplotlib import rcParams
 import matplotlib.cm as cm

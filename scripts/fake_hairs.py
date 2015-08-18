@@ -8,6 +8,8 @@ from itertools import groupby, count
 from operator import itemgetter
 import numpy as np
 import pandas as pd
+import scipy as sp
+from scipy import stats
 
 # init main
 def main(argv):
@@ -84,6 +86,22 @@ def reverse_compl(seq):
                  'N':'N'}
     return ''.join([translate[s] for s in seq])
 
+def dummyScore(log_val, prior_mean_hap1, prior_mean_hap2):
+	zscore1 = abs(log_val - prior_mean_hap1)/0.8 # dummy SD, fixed for all
+	pval1 = stats.norm.sf(zscore1)
+	zscore2 = abs(log_val - prior_mean_hap2)/0.8 # dummy SD, fixed for all
+	pval2 = stats.norm.sf(zscore2)
+	pval_hap1_nothap2 = (pval1 * (1-pval2))/(pval1*(1-pval2) + pval2*(1-pval1)) # p(hap1) * (1-p(hap2)) = P(hap1|not hap2)
+	pval_hap2_nothap1 = (pval2 * (1-pval1))/(pval2*(1-pval1) + pval1*(1-pval2)) # p(hap1) * (1-p(hap2)) = P(hap1|not hap2)
+	#print pval_hap1_nothap2, pval_hap2_nothap1
+	if pval_hap2_nothap1 > pval_hap1_nothap2:
+		return 1, toPhred(pval_hap1_nothap2)
+	else:
+		return 0, toPhred(pval_hap2_nothap1)
+		
+def toPhred(val):
+    return chr(int(-10*np.log10(val)) + 33), int(-10*np.log10(val))
+
 def fakeHairs(bam_fp, mergedvcf, out_new_hair, chrom, istart, iend):
 	counter = 0
 	for read in bam_fp.fetch(region=chrom, start=istart, end=iend):
@@ -108,19 +126,14 @@ def fakeHairs(bam_fp, mergedvcf, out_new_hair, chrom, istart, iend):
 				basepos = get_position_in_read(read, refpos, refmap)
 				mean1 = float(varline[7].split(";")[0].split("=")[1])
 				mean2 = float(varline[7].split(";")[1].split("=")[1])
-				if mean1 > mean2: # swap them so the highest methyl value is always in the 1 position
-					tmp = mean2
-					mean2 = mean1
-					mean1 = tmp
 				if basepos==None: continue
 				ipd_value = np.log(ipd_values[basepos])
-				mean1_res = abs(mean1-ipd_value)
-				mean2_res = abs(mean2-ipd_value)
-				if abs(mean1_res-mean2_res) >= 0.5: # this is our calling cutoff (arbitrary for now...)
-					if mean1_res > mean2_res:
-						allele = 1
-					phased_variants.append((varid, allele))
-					quals += '$'
+				allele, qualval = dummyScore(ipd_value, mean1, mean2)
+				if qualval[1] < 7 : # minimum quality value cutoff!
+					continue
+				phased_variants.append((varid, allele))
+				# new quality score calculation code!
+				quals += qualval[0]
 			else:
 				# let's get the base from the read and compare that to the vcf
 				# MAKE SURE that it is a het variant
@@ -141,6 +154,8 @@ def fakeHairs(bam_fp, mergedvcf, out_new_hair, chrom, istart, iend):
 						allele = 1
 					phased_variants.append((varid, allele))
 					quals += read_qual[0] 
+		if len(phased_variants) < 2:
+			continue # don't print nonuseful fragments!
 		groups = groupby(phased_variants, key=lambda item, c=count():item[0]-next(c))
 		tmp = [list(g) for k, g in groups]
 		blockcount = len(tmp)

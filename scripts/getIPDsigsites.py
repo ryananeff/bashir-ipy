@@ -1,9 +1,27 @@
 #!/usr/bin/env python
 
+import sklearn
 import pysam
-import HTSeq as ht
 import math
+from IPython import display
+from sklearn.neighbors import KernelDensity
+from sklearn import mixture
+from scipy.stats import gaussian_kde
+from statsmodels.nonparametric.kde import KDEUnivariate
+from statsmodels.nonparametric.kernel_density import KDEMultivariate
+import itertools
+from scipy import stats
+import numpy as np
 import os, sys, getopt
+
+
+def kde_scipy(x, x_grid, bandwidth=0.2, **kwargs):
+    """Kernel Density Estimation with Scipy"""
+    # Note that scipy weights its bandwidth by the covariance of the
+    # input data.  To make the results comparable to the other methods,
+    # we divide the bandwidth by the sample standard deviation here.
+    kde = gaussian_kde(x, bw_method=bandwidth / x.std(ddof=1), **kwargs)
+    return kde.evaluate(x_grid)
 
 # init main
 def main(argv):
@@ -17,9 +35,9 @@ def main(argv):
 	positionfile = ''
 	sequences = dict()
 
-	helpline = 'getIPDsigsites.py -i <ipd_positions> -o <out_sig> -p <priors> -r <ref.fa>'
+	helpline = 'getIPDsigsites.py -i <ipd_positions> -o <out_sig>'
 	try:
-		opts, args = getopt.getopt(argv,"i:o:p:r:",["in=","out=", "prior=", "ref="])
+		opts, args = getopt.getopt(argv,"i:o:",["in=","out="])
 	except getopt.GetoptError:
 		print helpline
 		sys.exit(2)
@@ -31,24 +49,17 @@ def main(argv):
 			pos_in_file = arg
 		elif opt in ("-o", "--out"):
 			out_file = arg
-		elif opt in ("-p", "--prior"):
-			prior_file = arg
-		elif opt in ("-r", "--ref"):
-			ref_file = arg
 		else:
 			assert False, "unhandled option"
 
 	pos_in = open(pos_in_file, 'r')
 	out_sig = open(out_file, 'wb')
-	prior_fp = open(prior_file, 'r')
-	sequences = dict( (s.name, s) for s in ht.FastaReader(reffile) )
 	
 	sys.stderr.write("Sucessful init: getIPDsigsites.py, starting...\n")
 	sys.stderr.flush()
-	sys.stderr.write("
-	getIPDfromBAM(bam_fp, sequences, chrom, start, end, pos_fp)
-	pos_fp.close()
-	bam_fp.close()
+	getIPDfromBAM(pos_in, out_sig)
+	pos_in.close()
+	out_sig.close()
 
 
 def get_refmap(bamread):
@@ -90,42 +101,40 @@ pseudocode:
     b. see if there is a pattern between haplotypes in each block and called haplotypes
     c. continue for whole contig/genome
 '''
-print >>sys.stderr, "init"
-pos_in = open(sig_positions, 'rb') #'/hpc/users/neffr01/jason_new/hapcut_outputs/hg002_re_000000F/hapcut_qv13_mq10/hg002_qv13_redo_merged_haps.ipd.tsv'
-block_reader = HapCutReader("/hpc/users/neffr01/jason_new/hapcut_outputs/hg002_re_000000F/hapcut_qv13_mq10/hg002_hapcut_000000F.hapcut")
-bam_fp = pysam.AlignmentFile("/hpc/users/neffr01/jason_new/hapcut_outputs/hg002_re_000000F/hg002_000000F.new.merged.bam.rg.bam")
-sequences = dict( (s.name, s) for s in ht.FastaReader("/hpc/users/neffr01/jason_new/contig_000000F.fa") )
-#motif dict load?
-
-print >>sys.stderr, "1. get set of significant IPD positions"
-siteslist = [] # list of methylated positions
-for line in pos_in:
-    if (line[0] == "#") | (line[0] == "="):
-        continue
-    chrom, pos, ipdl_hap1, ipdl_hap2 = line.strip('\n').split('\t')
-    pos = int(pos)
-    curr_motif = str(sequences['000000F'][pos-5:pos+6])
-    if curr_motif not in motif_dict:
-        continue
-    if (ipdl_hap1 == '')|(ipdl_hap2 == ''):
-        continue
-    ipd_hap1, ipd_hap2 = [int(x) for x in ipdl_hap1.split(',')], [int(x) for x in ipdl_hap2.split(',')]
-    if min([ipd_hap1,ipd_hap2]) < 8:
-        continue
-    prior_ipds = [int(x) for x in motif_dict[curr_motif].split(',', 2001)[0:2000]]
-    kstest_haps = stats.ks_2samp(ipd_hap1, ipd_hap2)
-    kstest_prior1, kstest_prior2 = stats.ks_2samp(prior_ipds, ipd_hap1), stats.ks_2samp(prior_ipds, ipd_hap2)
-    if (kstest_haps[1] > 0.01 ) | (min([kstest_prior1[1], kstest_prior2[1]]) > 0.01):
-        continue
-    logx, halflogx = np.linspace(0,10,100), np.linspace(0,10,50)
-    kde_prior = kde_scipy(np.log(prior_ipds), logx)
-    kde_hap1, kde_hap2 = kde_scipy(np.log(ipd_hap1), logx, bandwidth=0.25), kde_scipy(np.log(ipd_hap2), logx, bandwidth=0.25)
-    obs1, obs2 = np.array([[np.log(i)] for i in ipd_hap1]), np.array([[np.log(i)] for i in ipd_hap2])
-    obs = np.concatenate((obs1, obs2))
-    g, h = mixture.GMM(n_components=1), mixture.GMM(n_components=1)
-    x, y = g.fit(obs1), h.fit(obs2)
-    #print "000000F", pos, x.means_[0][0], y.means_[0][0]
-    siteslist.append(["000000F", pos, x.means_[0][0], y.means_[0][0]])
+def getIPDfromBAM(pos_in, out_sig):
+	print >>sys.stderr, "init"
+	print >>sys.stderr, "1. get set of significant IPD positions"
+	for line in pos_in:
+		if (line[0] == "#") | (line[0] == "="):
+			continue
+		chrom, pos, ipd_at_position = line.strip('\n').split('\t')
+		pos = int(pos)
+		if (ipd_at_position == ''):
+			continue
+		ipds = [int(x) for x in ipd_at_position.split(',')]
+		if len(ipds) < 20:
+			continue
+		ipds = np.log(ipds)
+		logx, halflogx = np.linspace(0,10,100), np.linspace(0,10,50)
+		kde_curr = kde_scipy(ipds, logx, bandwidth=0.25)
+		obs = np.array([[i] for i in ipds])
+		g = mixture.GMM(n_components=2)
+		x = g.fit(obs)
+		two_aic, two_bic = x.aic(obs), x.bic(obs)
+		two_means = np.reshape(x.means_, (1,2))[0]
+		two_weights = x.weights_
+		g = mixture.GMM(n_components=1)
+		x = g.fit(obs)
+		one_aic, one_bic = x.aic(obs), x.bic(obs)
+		one_mean = x.means_
+		one_weight = x.weights_
+		if two_aic+10 > one_aic: # cutoff
+			continue
+		if max(two_weights) > 0.75: # cutoff
+			continue
+		outline = ["000000F", pos, two_means[0], two_means[1], two_weights[0], two_weights[1], two_aic, two_bic, one_aic, one_bic]
+		out_sig.write('\t'.join([str(a) for a in outline]) + '\n')
+		out_sig.flush() # write for every site
 
 # run the program if called from the command line
 if __name__ == "__main__":

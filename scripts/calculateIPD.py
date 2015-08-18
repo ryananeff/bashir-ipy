@@ -105,6 +105,8 @@ def getIPDfromBAM(bam_fp, sequences, chrom, start, end, motif_fp, pos_fp):
 	count=0
 	for read in bam_fp.fetch(reference=chrom, start=start, end=end):
 		count += 1
+		if read.is_reverse:
+			continue
 		if count % 100 == 0:
 			sys.stderr.write("Read %s reads from file\n" % str(count))
 		ipd_values = [int(i) for i in read.get_tag('ip').strip('S').split(',')]
